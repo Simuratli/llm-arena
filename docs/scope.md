@@ -18,15 +18,15 @@ There are rough hand-drawn sketches for the arena screen, the leaderboard, and t
 
 | #   | Feature                                     | Phase      | Status      |
 | --- | ------------------------------------------- | ---------- | ----------- |
-| 1   | Connecting to a model                       | Foundation | not started |
+| 1   | Connecting to a model                       | Foundation | complete    |
 | 2   | Coding standards & tooling                  | Foundation | not started |
-| 3   | Data model                                  | Foundation | not started |
+| 3   | Data model                                  | Foundation | complete    |
 | 4   | Design & look                               | Foundation | not started |
-| 5   | Model picker                                | Slice 1    | not started |
-| 6   | Send a prompt, parallel streams, and voting | Slice 1    | not started |
+| 5   | Model picker                                | Slice 1    | in progress |
+| 6   | Send a prompt, parallel streams, and voting | Slice 1    | in progress |
 | 7   | App shell & thread history                  | Slice 2    | not started |
 | 8   | Public thread visibility & sharing          | Slice 3    | not started |
-| 9   | Leaderboard: global & personal              | Slice 4    | not started |
+| 9   | Leaderboard: global & personal              | Slice 4    | in progress |
 
 ## Foundation
 
@@ -38,8 +38,11 @@ Two real decisions still open once that exists: how the app calls OpenRouter to 
 
 PostHog should be wired in from the start too, session replay and heatmaps turned on, and tied to the signed-in user once Clerk resolves, so events are attached to a real person, not left anonymous.
 
-- [ ] Decide the approach
-- [ ] Write the spec
+Decision: OpenRouter is called from a server-only Next.js route using its OpenAI-compatible HTTP API and SSE streaming. The API key never reaches the browser. The first slice proves one prompt reaching one configured free model and streaming back to the arena. The eventual three-model flow will open one independent stream per model so a slow or failed model cannot take down the others. Provider failures return a plain user-facing message, while Clerk and PostHog integration remain follow-up foundation work once those services are configured.
+
+- [x] Decide the approach
+- [x] Write the spec
+- [x] Build the first single-model streaming slice
 
 ### 2. Coding standards & tooling
 
@@ -53,14 +56,18 @@ Write down the real conventions for this project once it actually exists, then i
 The core things every feature depends on: users tied to Clerk, threads, each model's own messages inside a thread, and votes. A vote should only ever be possible on a turn where two or more models actually answered.
 
 - [ ] Decide the approach
-- [ ] Build it
+- [x] Build it
+
+Implementation: Prisma stores Clerk users, prompt rounds, per-model responses and metrics, plus one vote per round. Run `npm run db:migrate` after setting `DATABASE_URL`.
 
 ### 4. Design & look
 
 A coffee or dark brown background, warm, not neutral gray or true black. One accent color, rust, used only for things you interact with, buttons, links, focus states, the win-rate bar, never as decoration. Because the background and the accent are both warm tones from the same family, the accent has to stay clearly brighter and more saturated than the background, enough that a button never blends into the page behind it, that's a real risk with two warm colors this close and worth checking by eye, not just by the numbers. Blue, indigo, and purple are never the accent, under any circumstance. Green is reserved only for marking a winner, red only for errors, never reused for anything else. Contrast should genuinely hold up in both light and dark mode, not just look fine at a glance.
 
-- [ ] Decide the approach
-- [ ] Build it
+Decision: Use the Apple design reference in `apple.md`: platform system typography, calm hierarchy, direct feedback, translucent structural materials, restrained depth, responsive layout, and reduced-motion/transparency/high-contrast accommodations. Keep the product's coffee and rust palette, using green only for winners and red only for errors.
+
+- [x] Decide the approach
+- [x] Build the arena and application shell direction
 
 ## Slice 1: Core arena loop
 
@@ -68,8 +75,10 @@ A coffee or dark brown background, warm, not neutral gray or true black. One acc
 
 An "Add model" popover pulling OpenRouter's live free-tier list, sorted by context window, capped at three models, defaulting to all three selected, with removable chips next to the prompt box. Also render that same catalog as a simple `/models` page, name, context window, and pricing for each one, so anyone can browse the full list without opening the picker.
 
-- [ ] Decide the approach
-- [ ] Build it
+Decision: The picker will use a small client-side catalog of current free OpenRouter models for the first working slice, with three models selected by default and a hard maximum of three. The API will still accept only model IDs from that selection and the catalog page can later move to the same server-fetched source.
+
+- [x] Decide the approach
+- [x] Build the first three-model selection and responsive arena slice
 
 ### 6. Send a prompt, parallel streams, and voting
 
@@ -79,8 +88,17 @@ Arcjet sits in front of this endpoint before any model is ever called: rate limi
 
 Every prompt sent, every answer finishing, and every vote cast should be tracked as a real PostHog event, so there's an honest funnel from prompt to answer to vote. A model failing should also be logged properly on the server, not just shown to the user and forgotten. Separately from that funnel, every actual model call should also be wrapped so PostHog captures its own real tokens, cost, and latency per call, that's PostHog's own LLM analytics, not the same thing as the funnel events or the numbers already shown on the response card.
 
-- [ ] Decide the approach
-- [ ] Build it
+Decision: One authenticated request will validate and protect the prompt once, then start one independent OpenRouter streaming request per selected model. The server sends typed SSE events tagged by model ID; the browser updates each card independently. Each card records time to first token, elapsed time, completion tokens, total tokens, and tokens per second. Voting stays disabled until at least two models complete successfully and is one-shot per round.
+
+- [x] Decide the approach
+- [x] Build the first three-model streaming and metrics slice
+
+Build checklist:
+- [x] Add three-model selection and responsive arena columns
+- [x] Stream independent model events and failures
+- [x] Render per-model metrics and enable voting after two answers
+- [x] Capture multi-model funnel and completion events
+- [x] Verify lint, typecheck, build, and a real local flow
 
 ## Slice 2: App shell & thread history
 
@@ -107,7 +125,7 @@ Anyone should be able to open a thread's link and see it, without an account, th
 Two leaderboards from the same votes, one for everyone, one just for the signed-in user. Each row's win rate is the big, bold number, in the accent color, with a small bar next to it, always written as "won 4 of 5," never a bare percentage or a made-up score. Smaller, quieter numbers underneath for average speed and time-to-first-token, each clearly labeled. No cost or "cheapest" stat, every model is free, so that number never means anything here. First place gets a subtle highlight, nobody else does.
 
 - [ ] Decide the approach
-- [ ] Build it
+- [x] Build the first real-metrics leaderboard page and API
 
 ## Not doing right now
 

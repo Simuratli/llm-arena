@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  rounds    Round[]
+  votes     Vote[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Round {
+  id        String          @id @default(cuid())
+  userId    String
+  prompt    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responses ModelResponse[]
+  vote      Vote?
+  createdAt DateTime        @default(now())
+}
+
+model ModelResponse {
+  id                  String   @id @default(cuid())
+  roundId             String
+  modelId             String
+  answer              String
+  status              String
+  timeToFirstTokenMs  Int?
+  elapsedMs           Int?
+  promptTokens        Int?
+  completionTokens    Int?
+  totalTokens         Int?
+  tokensPerSecond     Float?
+  round               Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+
+  @@unique([roundId, modelId])
+  @@index([modelId])
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  roundId    String   @unique
+  userId     String
+  modelId    String
+  round      Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([modelId])
+}
